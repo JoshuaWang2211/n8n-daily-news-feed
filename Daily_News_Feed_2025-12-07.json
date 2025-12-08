@@ -1,0 +1,235 @@
+{
+  "name": "Daily News Feed 2025-12-07",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// 定義新聞來源\n// ⚡️ 關鍵修改：將 'source' 改名為 'mySource' 以避免與 RSS 內建欄位衝突\nreturn [\n  // ===== 🔥 頭條焦點 =====\n  {\n    json: {\n      category: \"🔥 頭條焦點\",\n      mySource: \"聯合頭條\",\n      url: \"https://udn.com/rssfeed/news/2/6638?ch=news\"\n    }\n  },\n  {\n    json: {\n      category: \"🔥 頭條焦點\",\n      mySource: \"中央社政治\",\n      url: \"https://feeds.feedburner.com/rsscna/politics\"\n    }\n  },\n  // ===== 💻 科技新知 =====\n  {\n    json: {\n      category: \"💻 科技新知\",\n      mySource: \"iThome\",\n      url: \"https://www.ithome.com.tw/rss\"\n    }\n  },\n  {\n    json: {\n      category: \"💻 科技新知\",\n      mySource: \"TechNews\",\n      url: \"https://technews.tw/tn-rss/\"\n    }\n  },\n  {\n    json: {\n      category: \"💻 科技新知\",\n      mySource: \"Inside\",\n      url: \"https://www.inside.com.tw/feed/rss\"\n    }\n  }\n];"
+      },
+      "id": "e707ca2d-effc-4b56-b72c-801c00e64607",
+      "name": "設定新聞來源",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        168
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "ef2cb64d-4fd2-4e58-bef1-1b419f0a3a13",
+      "name": "迴圈處理",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -224,
+        168
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {}
+      },
+      "id": "2c9aacfc-ba66-4541-bf41-a510aa028974",
+      "name": "讀取 RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        -48
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "limit",
+        "maxItems": 5
+      },
+      "id": "172acdc2-9310-49b5-8e30-72026dd7709f",
+      "name": "只取前5則",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [
+        224,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "e7d9c839-2a0c-4ccf-b4b0-c2816db5b7d8",
+      "name": "合併資料 (Multiplex)",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ 修正重點：直接讀取進入此節點的資料 (items)\n// 畫面上顯示 \"25 items total\"，代表 items 變數裡已經有完整的 25 筆資料了\n// 不需要再去用 .all() 回頭查歷史紀錄，這樣最穩。\nconst allData = items; \n\nconst grouped = {};\n\nallData.forEach(item => {\n  const data = item.json;\n  \n  // 防止 category 是空的\n  const cat = data.category || \"未分類\";\n  \n  if (!grouped[cat]) grouped[cat] = [];\n  grouped[cat].push(data);\n});\n\nconst returnItems = [];\n\nfor (const [category, articles] of Object.entries(grouped)) {\n  let message = `*${category}*\\n\\n`;\n  \n  // 每個大類別最多顯示 15 則\n  const limitArticles = articles.slice(0, 15);  \n\n  limitArticles.forEach((art, index) => {\n    // 標題清理\n    const title = (art.title || \"無標題\").replace(/\\[/g, '(').replace(/\\]/g, ')');\n    \n    // 讀取來源 (優先讀取我們自訂的 mySource)\n    const sourceName = art.mySource || art.source || \"未知來源\";\n    \n    message += `${index + 1}\\. [${title}](${art.link}) - _${sourceName}_\\n\\n`;\n  });\n\n  returnItems.push({\n    json: {\n      message: message\n    }\n  });\n}\n\nreturn returnItems;"
+      },
+      "id": "c08c23c4-8720-44a7-ade4-d144a0108e05",
+      "name": "整理成訊息",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "你的 Chat ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "4c818875-b327-4d7b-adfe-b71bb55a1ffe",
+      "name": "發送 Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        240
+      ],
+      "webhookId": "61f70db3-fa8b-4bad-aefd-4cc039efb3d3",
+      "credentials": {
+        "telegramApi": {
+          "id": "ew4NqdwRM18Yoaku",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 11,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "id": "b33f09c7-d493-43cd-95ec-953945b26a92",
+      "name": "每天早上11:30點觸發",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -672,
+        168
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "設定新聞來源": {
+      "main": [
+        [
+          {
+            "node": "迴圈處理",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "迴圈處理": {
+      "main": [
+        [
+          {
+            "node": "整理成訊息",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "讀取 RSS",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "合併資料 (Multiplex)",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "讀取 RSS": {
+      "main": [
+        [
+          {
+            "node": "只取前5則",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "只取前5則": {
+      "main": [
+        [
+          {
+            "node": "合併資料 (Multiplex)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "合併資料 (Multiplex)": {
+      "main": [
+        [
+          {
+            "node": "迴圈處理",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "整理成訊息": {
+      "main": [
+        [
+          {
+            "node": "發送 Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "每天早上11:30點觸發": {
+      "main": [
+        [
+          {
+            "node": "設定新聞來源",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bb2a1f94-d420-493b-a921-c9a4dc3b7dd3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cc45d7065019d017b360072b2a94d9597e79317286e2cddf53c3a89639a55421"
+  },
+  "id": "l5E9gLTYuHb8CEeN",
+  "tags": []
+}
