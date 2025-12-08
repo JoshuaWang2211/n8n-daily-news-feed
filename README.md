@@ -24,6 +24,9 @@
 
 ## 🖼️ 截圖
 [![Workflow 截圖](/workflow.png)](/workflow.png)
+
+---
+
 [![Telegram 截圖](/telegram.png)](/telegram.png)
 
 ---
